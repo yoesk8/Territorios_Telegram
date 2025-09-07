@@ -19,6 +19,8 @@ client = gspread.authorize(creds)
 
 sheet = client.open("DoorToDoor_Territories").sheet1
 
+
+test_variable = 1
 # Test print
 rows = sheet.get_all_records()
 print("First 5 rows from the sheet:")
