@@ -30,7 +30,7 @@ scope = [
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-sheet = client.open("DoorToDoor_Territories").sheet1  # Make sure the sheet name matches
+sheet = client.open("DoorToDoor_Territories").sheet1  # Make sure sheet name matches
 
 # ==============================
 # Telegram Bot Setup
@@ -40,9 +40,10 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable not set")
 
 PORT = int(os.environ.get("PORT", 10000))  # Render provides this
-APP_URL = os.environ.get("APP_URL")  # e.g. "https://your-service.onrender.com"
-if not APP_URL:
-    raise ValueError("APP_URL environment variable not set")
+
+# Hardcode your Render service URL here
+RENDER_URL = "https://your-service-name.onrender.com"  # <- Replace with your Render URL
+WEBHOOK_URL = f"{RENDER_URL}/webhook/{BOT_TOKEN}"
 
 # ==============================
 # Command Handlers
@@ -115,9 +116,8 @@ app.add_handler(CommandHandler("complete", complete_command))
 # ==============================
 # Run the bot using Webhook
 # ==============================
-# Render will provide a PORT and we use APP_URL environment variable
 app.run_webhook(
     listen="0.0.0.0",
     port=PORT,
-    webhook_url=f"{APP_URL}/webhook/{BOT_TOKEN}"
+    webhook_url=WEBHOOK_URL
 )
