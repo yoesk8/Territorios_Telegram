@@ -111,6 +111,7 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if last_completed_date is not None:
         days_since = (today - last_completed_date).days
         if 0 <= days_since <= 7:
+            print(days_since, today)
             context.user_data["pending_assignment"] = {
                 "territory_id": territory_id,
                 "publisher": publisher,
