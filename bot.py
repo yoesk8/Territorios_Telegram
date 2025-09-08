@@ -41,34 +41,39 @@ from datetime import date
 from datetime import date, datetime, timedelta
 
 def parse_sheet_date(raw_value):
-    """Parse Google Sheets date from string or serial; return date or None."""
+    """Parse fecha de Google Sheets (string o serial). Devuelve date o None."""
     if not raw_value:
         return None
 
-    # Already a date?
+    if isinstance(raw_value, datetime):
+        return raw_value.date()
     if isinstance(raw_value, date):
         return raw_value
 
-    # Sheets/Excel serial number (days since 1899-12-30)
-    if isinstance(raw_value, (int, float)):
-        return (datetime(1899, 12, 30) + timedelta(days=int(raw_value))).date()
-
     s = str(raw_value).strip()
+    if s == "":
+        return None
 
-    # ISO formats first (handles 'YYYY-MM-DD' and 'YYYY-MM-DD HH:MM:SS')
+    # Serial Excel (número de días desde 1899-12-30)
     try:
-        return datetime.fromisoformat(s).date()
-    except ValueError:
+        num = float(s)
+        if num > 59:
+            return (datetime(1899, 12, 30) + timedelta(days=int(num))).date()
+    except Exception:
         pass
 
-    # Try common day/month/year & month/day/year
-    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%m-%d-%Y", "%Y/%m/%d"):
+    # Quitar parte de hora si existe
+    s_date_only = s.split(" ")[0].split("T")[0]
+
+    # PROBAR PRIMERO DÍA/MES/AÑO (ajústalo según tu locale de Sheets)
+    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d"):
         try:
-            return datetime.strptime(s, fmt).date()
-        except ValueError:
+            return datetime.strptime(s_date_only, fmt).date()
+        except Exception:
             continue
 
     return None
+
 
 
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
