@@ -139,18 +139,29 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
-    if not args:
-        await update.message.reply_text("Usage: /complete <territory_id>")
+    if len(args) < 1:
+        await update.message.reply_text(
+            "Para usar este comando, la manera correcta de hacerlo es: "
+            "/completar <numero_de_territorio>, Por ejemplo: /completar 1"
+        )
         return
 
     territory_id = args[0]
     cell = sheet.find(territory_id)
-    if cell:
-        sheet.update_cell(cell.row, 5, "Completado!")
-        sheet.update_cell(cell.row, 6, str(update.message.date))
-        await update.message.reply_text(f"🎉 Territorio {territory_id} registrado como completado")
-    else:
+
+    if not cell:
         await update.message.reply_text("❌ Territorio no encontrado")
+        return
+
+    today = date.today().isoformat()  # always YYYY-MM-DD
+
+    # Update publisher & date completed
+    sheet.update_cell(cell.row, 5, today)   # fecha en que se completó (col 5)
+    sheet.update_cell(cell.row, 6, "Completado")  # status (col 6)
+
+    await update.message.reply_text(
+        f"✅ Territorio {territory_id} marcado como COMPLETADO el {today}"
+    )
 
 # --- Main ---
 def main():
