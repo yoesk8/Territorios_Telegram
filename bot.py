@@ -35,22 +35,44 @@ def set_webhook():
     response = requests.post(webhook_url, data={"url": url})
     print("Webhook setup response:", response.json())
 
+from datetime import date
+
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text("Para usar este comando, la manera correcta de hacerlo es: /asignar <numero_de_territorio> <Persona>, Por ejemplo: /asignar 1 Yoel")
+        await update.message.reply_text(
+            "Para usar este comando, la manera correcta de hacerlo es: "
+            "/asignar <numero_de_territorio> <Persona>, Por ejemplo: /asignar 1 Yoel"
+        )
         return
 
     territory_id, publisher = args[0], args[1]
     cell = sheet.find(territory_id)
-    today = date.today().isoformat()
-    if cell:
-        sheet.update_cell(cell.row, 3, publisher)
-        sheet.update_cell(cell.row, 4, today)
-        sheet.update_cell(cell.row, 6, "En progreso")
-        await update.message.reply_text(f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, NO OLVIDES MARCARLO COMO COMPLETADO UNA VEZ TERMINADO 🙏. Puedes hacer esto usando el comando /completar")
-    else:
+
+    if not cell:
         await update.message.reply_text("❌ Territorio no encontrado")
+        return
+
+    # Get the current status in column 6
+    current_status = sheet.cell(cell.row, 6).value
+    today = date.today().isoformat()
+
+    # Check if already assigned
+    if current_status in ("Asignado", "En progreso"):
+        await update.message.reply_text("Ese territorio ya ha sido asignado")
+        return
+
+    # Assign it
+    sheet.update_cell(cell.row, 3, publisher)
+    sheet.update_cell(cell.row, 4, today)
+    sheet.update_cell(cell.row, 6, "En progreso")
+
+    await update.message.reply_text(
+        f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
+        "NO OLVIDES MARCARLO COMO COMPLETADO UNA VEZ TERMINADO 🙏. "
+        "Puedes hacer esto usando el comando /completar"
+    )
+
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
