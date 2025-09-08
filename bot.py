@@ -93,7 +93,7 @@ def main():
     listen="0.0.0.0",
     port=int(os.environ.get("PORT", 10000)),
     url_path=TOKEN,  # 👈 listen at /<TOKEN>
-    webhook_url=f"{APP_URL}/webhook/{TOKEN}"  # 👈 matches Telegram webhook
+    webhook_url=f"{APP_URL}/{TOKEN}"  # 👈 matches Telegram webhook
 )
 
 
