@@ -26,6 +26,13 @@ sheet = client.open("DoorToDoor_Territories").sheet1
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos: /asignar /status /completar")
 
+
+def set_webhook():
+    url = f"{APP_URL}/{TOKEN}"
+    webhook_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
+    response = requests.post(webhook_url, data={"url": url})
+    print("Webhook setup response:", response.json())
+
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) < 2:
@@ -80,6 +87,7 @@ def main():
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
 
+    set_webhook()
     application.run_webhook(
     listen="0.0.0.0",
     port=int(os.environ.get("PORT", 10000)),
