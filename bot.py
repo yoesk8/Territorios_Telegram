@@ -43,7 +43,7 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     territory_id, publisher = args[0], args[1]
     cell = sheet.find(territory_id)
-    today = date.today()
+    today = date.today().isoformat()
     if cell:
         sheet.update_cell(cell.row, 3, publisher)
         sheet.update_cell(cell.row, 4, today)
