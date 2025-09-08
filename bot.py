@@ -51,37 +51,28 @@ from datetime import date
 from datetime import date, datetime, timedelta
 
 def parse_sheet_date(raw_value):
-    """Parse fecha de Google Sheets (string o serial). Devuelve date o None."""
+    """Parsear fechas de Google Sheets con múltiples formatos y números seriales."""
     if not raw_value:
         return None
 
-    if isinstance(raw_value, datetime):
-        return raw_value.date()
+    # Si ya es date
     if isinstance(raw_value, date):
         return raw_value
 
-    s = str(raw_value).strip()
-    if s == "":
-        return None
+    # Si es número serial
+    if isinstance(raw_value, (int, float)):
+        return datetime(1899, 12, 30) + timedelta(days=int(raw_value))
 
-    # Serial Excel (número de días desde 1899-12-30)
-    try:
-        num = float(s)
-        if num > 59:
-            return (datetime(1899, 12, 30) + timedelta(days=int(num))).date()
-    except Exception:
-        pass
+    raw_value = str(raw_value).strip()
 
-    # Quitar parte de hora si existe
-    s_date_only = s.split(" ")[0].split("T")[0]
-
-    # PROBAR PRIMERO DÍA/MES/AÑO (ajústalo según tu locale de Sheets)
-    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d"):
+    # Intentar múltiples formatos
+    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
         try:
-            return datetime.strptime(s_date_only, fmt).date()
-        except Exception:
+            return datetime.strptime(raw_value, fmt).date()
+        except ValueError:
             continue
 
+    logger.warning(f"No se pudo parsear la fecha: {raw_value}")
     return None
 
 
