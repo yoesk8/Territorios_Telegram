@@ -6,6 +6,16 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
 from datetime import date, datetime, timedelta
+import logging
+
+
+# Logging config
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 
 # --- Load environment variables ---
 TOKEN = os.environ["BOT_TOKEN"]
@@ -103,13 +113,17 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Fecha de última finalización (col 5) con parse robusto
     last_completed_raw = sheet.cell(cell.row, 5).value
+    logger.info(f"Valor crudo de col(5): {last_completed_raw}")
     last_completed_date = parse_sheet_date(last_completed_raw)
+    logger.info(f"Valor parseado: {last_completed_date}")
+
 
     today = date.today()
 
     # Si se completó en la última semana → pedir confirmación con /si o /no
     if last_completed_date is not None:
         days_since = (today - last_completed_date).days
+        logger.info(f"days_since:{days_since}")
         if 0 <= days_since <= 7:
             print(days_since, today)
             context.user_data["pending_assignment"] = {
