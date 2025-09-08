@@ -45,13 +45,11 @@ def set_webhook():
     response = requests.post(webhook_url, data={"url": url})
     print("Webhook setup response:", response.json())
 
-from datetime import date
 
 
-from datetime import date, datetime, timedelta
-
+# Función para parsear fechas de Google Sheets
 def parse_sheet_date(raw_value):
-    """Parsear fechas de Google Sheets con múltiples formatos y números seriales."""
+    """Parsear fechas de Google Sheets (string o número serial) a date."""
     if not raw_value:
         return None
 
@@ -61,11 +59,15 @@ def parse_sheet_date(raw_value):
 
     # Si es número serial
     if isinstance(raw_value, (int, float)):
-        return datetime(1899, 12, 30) + timedelta(days=int(raw_value))
+        try:
+            return (datetime(1899, 12, 30) + timedelta(days=int(raw_value))).date()
+        except Exception as e:
+            logger.error(f"Error parseando número de fecha: {e}")
+            return None
 
     raw_value = str(raw_value).strip()
 
-    # Intentar múltiples formatos
+    # Intentar múltiples formatos: día/mes/año, mes/día/año, año-mes-día
     for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
         try:
             return datetime.strptime(raw_value, fmt).date()
@@ -75,92 +77,96 @@ def parse_sheet_date(raw_value):
     logger.warning(f"No se pudo parsear la fecha: {raw_value}")
     return None
 
-
-
+# Función principal de asignar
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
+    logger.info(f"Comando /asignar recibido con args: {args}")
+
     if len(args) < 2:
         await update.message.reply_text(
-            "Para usar este comando, la manera correcta de hacerlo es: "
-            "/asignar <numero_de_territorio> <Persona>, Por ejemplo: /asignar 1 Yoel"
+            "Para usar este comando: /asignar <numero_de_territorio> <Persona>"
         )
         return
 
     territory_id, publisher = args[0], args[1]
-    cell = sheet.find(territory_id)
+    logger.info(f"territory_id={territory_id}, publisher={publisher}")
 
+    cell = sheet.find(territory_id)
     if not cell:
         await update.message.reply_text("❌ Territorio no encontrado")
+        logger.info(f"Territorio {territory_id} no encontrado en la hoja")
         return
 
-    # Estado actual (col 6) - case-insensitive
+    # Status actual (col 6)
     current_status = sheet.cell(cell.row, 6).value
     normalized_status = (current_status or "").strip().lower()
+    logger.info(f"Status actual: {current_status} → normalizado: {normalized_status}")
 
-    # Si ya está asignado o en progreso, parar
-    if normalized_status in ("asignado", "en progreso"):
-        await update.message.reply_text("Ese territorio ya ha sido asignado")
-        return
-
-    # Fecha de última finalización (col 5) con parse robusto
+    # Fecha de última completación (col 5)
     last_completed_raw = sheet.cell(cell.row, 5).value
-    logger.info(f"Valor crudo de col(5): {last_completed_raw}")
     last_completed_date = parse_sheet_date(last_completed_raw)
-    logger.info(f"Valor parseado: {last_completed_date}")
-
+    logger.info(f"Valor crudo col(5): {last_completed_raw}, parseado: {last_completed_date}")
 
     today = date.today()
+    logger.info(f"Fecha de hoy: {today}")
 
-    # Si se completó en la última semana → pedir confirmación con /si o /no
-    if last_completed_date is not None:
-        days_since = (today - last_completed_date).days
-        logger.info(f"days_since:{days_since}")
-        if 0 <= days_since <= 7:
-            print(days_since, today)
+    # Validar si ya está asignado
+    if normalized_status in ("asignado", "en progreso"):
+        await update.message.reply_text("Ese territorio ya ha sido asignado")
+        logger.info("No se asigna porque el status ya estaba en Asignado/En progreso")
+        return
+
+    # Comprobar si se completó en la última semana
+    if last_completed_date:
+        diff_days = (today - last_completed_date).days
+        logger.info(f"Días desde última completación: {diff_days}")
+        if diff_days <= 7:
             context.user_data["pending_assignment"] = {
                 "territory_id": territory_id,
                 "publisher": publisher,
                 "row": cell.row
             }
             await update.message.reply_text(
-                "⚠️ ADVERTENCIA! Este territorio se completó en la última semana, "
-                "seguro que quieres asignarlo? Responde /si o /no"
+                "⚠️ ADVERTENCIA! Este territorio se completó en la última semana.\n"
+                "Responde /si o /no"
             )
+            logger.info(f"Asignación pendiente guardada: {context.user_data['pending_assignment']}")
             return
 
-    # Si no hay fecha o no es reciente → asignar de una
+    # Asignación directa si no hay advertencia
     await do_assignment(update, territory_id, publisher, cell.row)
+    logger.info(f"Territorio {territory_id} asignado directamente sin advertencia")
 
-
-async def do_assignment(update: Update, territory_id: str, publisher: str, row: int):
-    today_str = date.today().isoformat()
-    sheet.update_cell(row, 3, publisher)     # Col 3: asignado a
-    sheet.update_cell(row, 4, today_str)     # Col 4: fecha de asignación
-    sheet.update_cell(row, 6, "En progreso") # Col 6: estado
+# Función para realizar la asignación
+async def do_assignment(update, territory_id, publisher, row):
+    today = date.today().isoformat()
+    sheet.update_cell(row, 3, publisher)      # Col 3: asignado a
+    sheet.update_cell(row, 4, today)          # Col 4: fecha asignación
+    sheet.update_cell(row, 6, "En progreso")  # Col 6: status
 
     await update.message.reply_text(
-        f"✅ Territorio {territory_id} asignado a {publisher} hoy {today_str}, "
-        "NO OLVIDES MARCARLO COMO COMPLETADO UNA VEZ TERMINADO 🙏. "
-        "Puedes hacer esto usando el comando /completar"
+        f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
+        "NO OLVIDES MARCARLO COMO COMPLETADO 🙏. "
+        "Usa /completar para finalizar"
     )
 
-
+# Confirmación de asignación pendiente
 async def confirm_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending = context.user_data.get("pending_assignment")
     if not pending:
-        await update.message.reply_text("❌ No tienes ninguna asignación pendiente de confirmación")
+        await update.message.reply_text("❌ No hay ninguna asignación pendiente")
         return
 
     await do_assignment(update, pending["territory_id"], pending["publisher"], pending["row"])
-    context.user_data.pop("pending_assignment", None)
-
+    context.user_data.pop("pending_assignment")
 
 async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "pending_assignment" in context.user_data:
-        context.user_data.pop("pending_assignment", None)
+        context.user_data.pop("pending_assignment")
         await update.message.reply_text("❌ Asignación cancelada.")
     else:
-        await update.message.reply_text("❌ No tienes ninguna asignación pendiente de confirmación")
+        await update.message.reply_text("❌ No hay ninguna asignación pendiente")
+
 
 
 
