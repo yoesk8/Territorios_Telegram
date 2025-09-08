@@ -32,15 +32,15 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Para usar este comando, la manera correcta de hacerlo es: /asignar <numero_de_territorio> <Persona>, Por ejemplo: /asignar 1 Yoel")
         return
 
-    territory_id, team = args[0], args[1]
+    territory_id, publisher = args[0], args[1]
     cell = sheet.find(territory_id)
     if cell:
         sheet.update_cell(cell.row, 3, "Asignado!")
-        sheet.update_cell(cell.row, 4, team)
-        sheet.update_cell(cell.row, 5, "In Progress")
-        await update.message.reply_text(f"✅ Territory {territory_id} assigned to {team}")
+        sheet.update_cell(cell.row, 4, publisher)
+        sheet.update_cell(cell.row, 5, "En progreso")
+        await update.message.reply_text(f"✅ Territorio {territory_id} asignado a {publisher}")
     else:
-        await update.message.reply_text("❌ Territory not found")
+        await update.message.reply_text("❌ Territorio no encontrado")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
@@ -52,9 +52,9 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cell = sheet.find(territory_id)
     if cell:
         row = sheet.row_values(cell.row)
-        await update.message.reply_text(f"📊 Status of {territory_id}: {row}")
+        await update.message.reply_text(f"El Territorio # {territory_id} se encuentra {row}")
     else:
-        await update.message.reply_text("❌ Territory not found")
+        await update.message.reply_text("❌ Territorio no encontrado")
 
 async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
@@ -65,11 +65,11 @@ async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     territory_id = args[0]
     cell = sheet.find(territory_id)
     if cell:
-        sheet.update_cell(cell.row, 5, "Completed")
+        sheet.update_cell(cell.row, 5, "Completado!")
         sheet.update_cell(cell.row, 6, str(update.message.date))
-        await update.message.reply_text(f"🎉 Territory {territory_id} marked as Completed")
+        await update.message.reply_text(f"🎉 Territorio {territory_id} registrado como completado")
     else:
-        await update.message.reply_text("❌ Territory not found")
+        await update.message.reply_text("❌ Territorio no encontrado")
 
 # --- Main ---
 def main():
