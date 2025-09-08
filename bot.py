@@ -5,7 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
-from datetime import date
+from datetime import date, datetime, timedelta
 
 # --- Load environment variables ---
 TOKEN = os.environ["BOT_TOKEN"]
@@ -37,6 +37,7 @@ def set_webhook():
 
 from datetime import date
 
+
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) < 2:
@@ -53,25 +54,73 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Territorio no encontrado")
         return
 
-    # Get the current status in column 6
+    # Get current status (col 6)
     current_status = sheet.cell(cell.row, 6).value
-    today = date.today().isoformat()
+    normalized_status = (current_status or "").strip().lower()
 
-    # Check if already assigned
-    if current_status in ("Asignado", "En progreso"):
+    # Get last completion date (col 5)
+    last_completed_raw = sheet.cell(cell.row, 5).value
+    last_completed_date = None
+    if last_completed_raw:
+        try:
+            last_completed_date = datetime.strptime(last_completed_raw, "%Y-%m-%d").date()
+        except ValueError:
+            pass  # Ignore parsing errors if the sheet has a weird format
+
+    today = date.today()
+
+    # If already assigned, stop
+    if normalized_status in ("asignado", "en progreso"):
         await update.message.reply_text("Ese territorio ya ha sido asignado")
         return
 
-    # Assign it
-    sheet.update_cell(cell.row, 3, publisher)
-    sheet.update_cell(cell.row, 4, today)
-    sheet.update_cell(cell.row, 6, "En progreso")
+    # If completed within the last 7 days → ask for confirmation
+    if last_completed_date and (today - last_completed_date).days <= 7:
+        context.user_data["pending_assignment"] = {
+            "territory_id": territory_id,
+            "publisher": publisher,
+            "row": cell.row
+        }
+        await update.message.reply_text(
+            "⚠️ ADVERTENCIA! Este territorio se completó en la última semana.\n\n"
+            "¿Seguro que quieres asignarlo?\n"
+            "Responde /si o /no"
+        )
+        return
+
+    # Otherwise → assign immediately
+    await do_assignment(update, territory_id, publisher, cell.row)
+
+
+async def do_assignment(update, territory_id, publisher, row):
+    today = date.today().isoformat()
+    sheet.update_cell(row, 3, publisher)
+    sheet.update_cell(row, 4, today)
+    sheet.update_cell(row, 6, "En progreso")
 
     await update.message.reply_text(
         f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
         "NO OLVIDES MARCARLO COMO COMPLETADO UNA VEZ TERMINADO 🙏. "
         "Puedes hacer esto usando el comando /completar"
     )
+
+
+async def confirm_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pending = context.user_data.get("pending_assignment")
+    if not pending:
+        await update.message.reply_text("❌ No tienes ninguna asignación pendiente de confirmación")
+        return
+
+    await do_assignment(update, pending["territory_id"], pending["publisher"], pending["row"])
+    context.user_data.pop("pending_assignment")
+
+
+async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "pending_assignment" in context.user_data:
+        context.user_data.pop("pending_assignment")
+        await update.message.reply_text("❌ Asignación cancelada.")
+    else:
+        await update.message.reply_text("❌ No tienes ninguna asignación pendiente de confirmación")
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -109,6 +158,8 @@ def main():
 
     application.add_handler(CommandHandler("inicio", start))
     application.add_handler(CommandHandler("asignar", assign))
+    application.add_handler(CommandHandler("si", confirm_yes))
+    application.add_handler(CommandHandler("no", confirm_no))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
 
