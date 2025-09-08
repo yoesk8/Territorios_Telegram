@@ -39,12 +39,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable not set")
 
-PORT = int(os.environ.get("PORT", 10000))  # Render provides this
-
-# Hardcode your Render service URL here
-RENDER_URL = "https://your-service-name.onrender.com"  # <- Replace with your Render URL
-WEBHOOK_URL = f"{RENDER_URL}/webhook/{BOT_TOKEN}"
-
 # ==============================
 # Command Handlers
 # ==============================
@@ -114,10 +108,6 @@ app.add_handler(CommandHandler("status", status_command))
 app.add_handler(CommandHandler("complete", complete_command))
 
 # ==============================
-# Run the bot using Webhook
+# Run the bot using Long Polling
 # ==============================
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=WEBHOOK_URL
-)
+app.run_polling(timeout=60)  # Timeout prevents quick disconnects
