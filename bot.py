@@ -24,18 +24,18 @@ sheet = client.open("DoorToDoor_Territories").sheet1
 
 # --- Command Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚪 Territory Bot is alive! Use /assign /status /complete")
+    await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos: /asignar /status /completar")
 
 async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text("Usage: /assign <territory_id> <team>")
+        await update.message.reply_text("Para usar este comando, la manera correcta de hacerlo es: /asignar <numero_de_territorio> <Persona>, Por ejemplo: /asignar 1 Yoel")
         return
 
     territory_id, team = args[0], args[1]
     cell = sheet.find(territory_id)
     if cell:
-        sheet.update_cell(cell.row, 3, "Assigned")
+        sheet.update_cell(cell.row, 3, "Asignado!")
         sheet.update_cell(cell.row, 4, team)
         sheet.update_cell(cell.row, 5, "In Progress")
         await update.message.reply_text(f"✅ Territory {territory_id} assigned to {team}")
@@ -75,10 +75,10 @@ async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("assign", assign))
+    application.add_handler(CommandHandler("inicio", start))
+    application.add_handler(CommandHandler("asignar", assign))
     application.add_handler(CommandHandler("status", status))
-    application.add_handler(CommandHandler("complete", complete))
+    application.add_handler(CommandHandler("completar", complete))
 
     application.run_webhook(
     listen="0.0.0.0",
