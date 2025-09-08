@@ -5,6 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
+from datetime import date
 
 # --- Load environment variables ---
 TOKEN = os.environ["BOT_TOKEN"]
@@ -42,11 +43,12 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     territory_id, publisher = args[0], args[1]
     cell = sheet.find(territory_id)
+    today = date.today()
     if cell:
-        sheet.update_cell(cell.row, 3, "Asignado!")
-        sheet.update_cell(cell.row, 4, publisher)
-        sheet.update_cell(cell.row, 5, "En progreso")
-        await update.message.reply_text(f"✅ Territorio {territory_id} asignado a {publisher}")
+        sheet.update_cell(cell.row, 3, publisher)
+        sheet.update_cell(cell.row, 4, today)
+        sheet.update_cell(cell.row, 6, "En progreso")
+        await update.message.reply_text(f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, NO OLVIDES MARCARLO COMO COMPLETADO UNA VEZ TERMINADO 🙏. Puedes hacer esto usando el comando /completar")
     else:
         await update.message.reply_text("❌ Territorio no encontrado")
 
