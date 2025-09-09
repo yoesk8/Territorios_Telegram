@@ -36,7 +36,7 @@ sheet = client.open("DoorToDoor_Territories").sheet1
 
 # --- Command Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos: /asignar /status /completar")
+    await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos:\n /asignar --Este comando te permite asignar un territorio a un publicador-- \n /status --Este comando te permite saber si un territorio está actualmente asignado y a quien está asignado-- \n /completar --Este comando te permite marcar un territorio como completado-- \n /zona --Este comando te permite averiguar que territorios de una zona específica están asignados o no asignados")
 
 
 def set_webhook():
@@ -111,9 +111,9 @@ async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Fecha de hoy: {today}")
 
     # Validar si ya está asignado
-    if normalized_status in ("asignado", "en progreso"):
+    if normalized_status in ("asignado"):
         await update.message.reply_text("Ese territorio ya ha sido asignado")
-        logger.info("No se asigna porque el status ya estaba en Asignado/En progreso")
+        logger.info("No se asigna porque el status ya estaba en Asignado")
         return
 
     # Comprobar si se completó en la última semana
@@ -142,7 +142,7 @@ async def do_assignment(update, territory_id, publisher, row):
     today = date.today().isoformat()
     sheet.update_cell(row, 3, publisher)      # Col 3: asignado a
     sheet.update_cell(row, 4, today)          # Col 4: fecha asignación
-    sheet.update_cell(row, 6, "En progreso")  # Col 6: status
+    sheet.update_cell(row, 6, "Asignado")  # Col 6: status
 
     await update.message.reply_text(
         f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
@@ -173,7 +173,7 @@ async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
-        await update.message.reply_text("Usage: /status <territory_id>")
+        await update.message.reply_text("Este comando se usa asi: /status <# de territorio Ejemplo: /status 1>")
         return
 
     territory_id = args[0]
@@ -204,10 +204,10 @@ async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Update publisher & date completed
     sheet.update_cell(cell.row, 5, today)   # fecha en que se completó (col 5)
-    sheet.update_cell(cell.row, 6, "Completado")  # status (col 6)
+    sheet.update_cell(cell.row, 6, "No asignado")  # status (col 6)
 
     await update.message.reply_text(
-        f"✅ Territorio {territory_id} marcado como COMPLETADO el {today}"
+        f"✅ Territorio {territory_id} se completó hoy: {today}"
     )
 
 async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -253,9 +253,9 @@ async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if row_zone != zona_name:
             continue
 
-        if filter_type == "noasignados" and status not in ("asignado", "en progreso"):
+        if filter_type == "noasignados" and status not in ("asignado"):
             matching_territories.append(row[0])
-        elif filter_type == "asignados" and status in ("asignado", "en progreso"):
+        elif filter_type == "asignados" and status in ("asignado"):
             matching_territories.append(row[0])
 
     if not matching_territories:
