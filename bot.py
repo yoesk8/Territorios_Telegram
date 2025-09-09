@@ -45,42 +45,44 @@ sheet = client.open("DoorToDoor_Territories").sheet1
 # async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos:\n /asignar --Este comando te permite asignar un territorio a un publicador-- \n /status --Este comando te permite saber si un territorio está actualmente asignado y a quien está asignado-- \n /completar --Este comando te permite marcar un territorio como completado-- \n /zona --Este comando te permite averiguar que territorios de una zona específica están asignados o no asignados")
 
+
+# Función del menú principal
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [
-            InlineKeyboardButton("📌 Asignar territorio", callback_data="menu_asignar"),
-            InlineKeyboardButton("✅ Completar territorio", callback_data="menu_completar")
-        ],
-        [
-            InlineKeyboardButton("🌍 Ver por zona", callback_data="menu_zona")
-        ]
+        [InlineKeyboardButton("📍 Zona", callback_data="menu_zona")],
+        [InlineKeyboardButton("📝 Asignar", callback_data="menu_asignar")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Bienvenido al gestor de territorios 👋\nElige una opción:", reply_markup=reply_markup)
+    if update.message:  # Si se abre con /inicio
+        await update.message.reply_text("📌 Menú principal:", reply_markup=reply_markup)
+    elif update.callback_query:  # Si se abre desde otro botón
+        await update.callback_query.message.edit_text("📌 Menú principal:", reply_markup=reply_markup)
+        await update.callback_query.answer()
 
-async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Handler de los botones
+async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    data = query.data
 
-    if query.data == "menu_asignar":
-        await query.edit_message_text("Selecciona un territorio para asignar (pendiente de implementar botones).")
-    elif query.data == "menu_completar":
-        await query.edit_message_text("Selecciona un territorio para completar (pendiente de implementar botones).")
-    elif query.data == "menu_zona":
-        # Reutilizamos lo que ya hicimos de zonas
+    if data == "menu_zona":
         keyboard = [
-            [
-                InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul"),
-                InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertasdelsol")
-            ],
-            [
-                InlineKeyboardButton("Portete Tarqui", callback_data="zona_portetetarqui"),
-                InlineKeyboardButton("Bosque Azul", callback_data="zona_bosqueazul")
-            ]
+            [InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul")],
+            [InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertassol")],
+            [InlineKeyboardButton("Portete Tarqui", callback_data="zona_portete")],
+            [InlineKeyboardButton("Bosque Azul", callback_data="zona_bosque")],
+            [InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("🌍 Selecciona una zona:", reply_markup=reply_markup)
+        await query.message.edit_text("🌍 Selecciona una zona:", reply_markup=reply_markup)
+
+    elif data == "menu_asignar":
+        await query.message.edit_text("✍️ Usa los botones o el comando para asignar territorios.")
+
+    elif data == "menu_inicio":
+        await inicio(update, context)  # Volver al inicio
+
+    await query.answer()
 
 
 def set_webhook():
@@ -403,7 +405,7 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("inicio", start))
-    application.add_handler(CallbackQueryHandler(menu_callback, pattern="^menu_"))
+    application.add_handler(CallbackQueryHandler(menu_handler))
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
     application.add_handler(CommandHandler("asignar", assign))
