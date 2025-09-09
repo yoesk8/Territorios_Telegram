@@ -285,6 +285,7 @@ def main():
     application.add_handler(CommandHandler("no", confirm_no))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
+    application.add_handler(CommandHandler("zona", zona))
 
     set_webhook()
     application.run_webhook(
