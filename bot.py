@@ -41,16 +41,13 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open("DoorToDoor_Territories").sheet1
 
-# --- Command Handlers ---
-# async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos:\n /asignar --Este comando te permite asignar un territorio a un publicador-- \n /status --Este comando te permite saber si un territorio está actualmente asignado y a quien está asignado-- \n /completar --Este comando te permite marcar un territorio como completado-- \n /zona --Este comando te permite averiguar que territorios de una zona específica están asignados o no asignados")
-
 
 # Función del menú principal
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📍 Zona", callback_data="menu_zona")],
         [InlineKeyboardButton("📝 Asignar", callback_data="menu_asignar")],
+        [InlineKeyboardButton("✅ Completar", callback_data="menu_completar")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -81,6 +78,9 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "menu_inicio":
         await inicio(update, context)  # Volver al inicio
+    
+    elif data == "menu_completar":
+        await complete(update, context) # Inicia menu completar
 
     await query.answer()
 
@@ -404,7 +404,7 @@ async def filtro_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler("inicio", start))
+    application.add_handler(CommandHandler("inicio", inicio))
     application.add_handler(CallbackQueryHandler(menu_handler))
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
