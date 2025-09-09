@@ -42,8 +42,45 @@ client = gspread.authorize(creds)
 sheet = client.open("DoorToDoor_Territories").sheet1
 
 # --- Command Handlers ---
+# async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos:\n /asignar --Este comando te permite asignar un territorio a un publicador-- \n /status --Este comando te permite saber si un territorio está actualmente asignado y a quien está asignado-- \n /completar --Este comando te permite marcar un territorio como completado-- \n /zona --Este comando te permite averiguar que territorios de una zona específica están asignados o no asignados")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola! Bienvenido al asistente de Territorios para la congregación Puerto azul, para interactuar conmigo, puedes usar los siguientes comandos:\n /asignar --Este comando te permite asignar un territorio a un publicador-- \n /status --Este comando te permite saber si un territorio está actualmente asignado y a quien está asignado-- \n /completar --Este comando te permite marcar un territorio como completado-- \n /zona --Este comando te permite averiguar que territorios de una zona específica están asignados o no asignados")
+    keyboard = [
+        [
+            InlineKeyboardButton("📌 Asignar territorio", callback_data="menu_asignar"),
+            InlineKeyboardButton("✅ Completar territorio", callback_data="menu_completar")
+        ],
+        [
+            InlineKeyboardButton("🌍 Ver por zona", callback_data="menu_zona")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Bienvenido al gestor de territorios 👋\nElige una opción:", reply_markup=reply_markup)
+
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "menu_asignar":
+        await query.edit_message_text("Selecciona un territorio para asignar (pendiente de implementar botones).")
+    elif query.data == "menu_completar":
+        await query.edit_message_text("Selecciona un territorio para completar (pendiente de implementar botones).")
+    elif query.data == "menu_zona":
+        # Reutilizamos lo que ya hicimos de zonas
+        keyboard = [
+            [
+                InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul"),
+                InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertasdelsol")
+            ],
+            [
+                InlineKeyboardButton("Portete Tarqui", callback_data="zona_portetetarqui"),
+                InlineKeyboardButton("Bosque Azul", callback_data="zona_bosqueazul")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("🌍 Selecciona una zona:", reply_markup=reply_markup)
 
 
 def set_webhook():
@@ -366,6 +403,9 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("inicio", start))
+    application.add_handler(CallbackQueryHandler(menu_callback, pattern="^menu_"))
+    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
+    application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
     application.add_handler(CommandHandler("asignar", assign))
     application.add_handler(CommandHandler("si", confirm_yes))
     application.add_handler(CommandHandler("no", confirm_no))
