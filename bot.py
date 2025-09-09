@@ -339,7 +339,6 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("inicio", inicio))
-    application.add_handler(CallbackQueryHandler(menu_handler))
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
     application.add_handler(CommandHandler("asignar", assign))
@@ -348,6 +347,8 @@ def main():
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
+    application.add_handler(CallbackQueryHandler(menu_handler))
+
 
 
 
