@@ -300,8 +300,16 @@ async def confirm_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ No hay ninguna asignación pendiente")
         return
 
-    await do_assignment(update, pending["territory_id"], pending["publisher"], pending["row"])
-    context.user_data.pop("pending_assignment")
+    # Mostrar botones de personas después de confirmar
+    publishers = ["Yoel", "Ana", "Carlos"]  # reemplaza con tus nombres reales
+    buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
+    buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    await update.message.reply_text(
+        f"Territorio {pending['territory_id']} confirmado para asignar. Elige la persona:",
+        reply_markup=reply_markup
+    )
 
 async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "pending_assignment" in context.user_data:
@@ -309,6 +317,7 @@ async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Asignación cancelada.")
     else:
         await update.message.reply_text("❌ No hay ninguna asignación pendiente")
+
 
 
 
