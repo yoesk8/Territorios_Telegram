@@ -194,6 +194,20 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
 
     await query.message.edit_text(f"Territorio {territory_id} seleccionado. Elige la persona a asignar:", reply_markup=reply_markup)
 
+async def mostrar_botones_personas(query, context):
+    publishers = ["Yoel", "Ana", "Carlos"]  # reemplaza con tus nombres reales
+    buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
+    buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    pending = context.user_data.get("pending_assignment")
+    await query.message.edit_text(
+        f"Territorio {pending['territory_id']} seleccionado. Elige la persona a asignar:",
+        reply_markup=reply_markup
+    )
+
+
+
 # Función para asignar una persona al territorio ya seleccionado
 async def asignar_persona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -228,78 +242,6 @@ async def do_assignment(update_or_query, territory_id, publisher, row):
         await update_or_query.edit_message_text(text)
 
 
-# # Función principal de asignar
-# async def assign(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     args = context.args
-#     logger.info(f"Comando /asignar recibido con args: {args}")
-
-#     if len(args) < 2:
-#         await update.message.reply_text(
-#             "Para usar este comando: /asignar <numero_de_territorio> <Persona>,por ejemplo: /asignar 1 Yoel"
-#         )
-#         return
-
-#     territory_id, publisher = args[0], args[1]
-#     logger.info(f"territory_id={territory_id}, publisher={publisher}")
-
-#     cell = sheet.find(territory_id)
-#     if not cell:
-#         await update.message.reply_text("❌ Territorio no encontrado")
-#         logger.info(f"Territorio {territory_id} no encontrado en la hoja")
-#         return
-
-#     # Status actual (col 6)
-#     current_status = sheet.cell(cell.row, 6).value
-#     normalized_status = (current_status or "").strip().lower()
-#     logger.info(f"Status actual: {current_status} → normalizado: {normalized_status}")
-
-#     # Fecha de última completación (col 5)
-#     last_completed_raw = sheet.cell(cell.row, 5).value
-#     last_completed_date = parse_sheet_date(last_completed_raw)
-#     logger.info(f"Valor crudo col(5): {last_completed_raw}, parseado: {last_completed_date}")
-
-#     today = date.today()
-#     logger.info(f"Fecha de hoy: {today}")
-
-#     # Validar si ya está asignado
-#     if normalized_status in ("asignado"):
-#         await update.message.reply_text("Ese territorio ya ha sido asignado")
-#         logger.info("No se asigna porque el status ya estaba en Asignado")
-#         return
-
-#     # Comprobar si se completó en la última semana
-#     if last_completed_date:
-#         diff_days = (today - last_completed_date).days
-#         logger.info(f"Días desde última completación: {diff_days}")
-#         if diff_days <= 7:
-#             context.user_data["pending_assignment"] = {
-#                 "territory_id": territory_id,
-#                 "publisher": publisher,
-#                 "row": cell.row
-#             }
-#             await update.message.reply_text(
-#                 "⚠️ ADVERTENCIA! Este territorio se completó en la última semana.\n"
-#                 "Deseas asignarlo de todas maneras? Responde /si o /no"
-#             )
-#             logger.info(f"Asignación pendiente guardada: {context.user_data['pending_assignment']}")
-#             return
-
-#     # Asignación directa si no hay advertencia
-#     await do_assignment(update, territory_id, publisher, cell.row)
-#     logger.info(f"Territorio {territory_id} asignado directamente sin advertencia")
-
-# # Función para realizar la asignación
-# async def do_assignment(update, territory_id, publisher, row):
-#     today = date.today().isoformat()
-#     sheet.update_cell(row, 3, publisher)      # Col 3: asignado a
-#     sheet.update_cell(row, 4, today)          # Col 4: fecha asignación
-#     sheet.update_cell(row, 6, "Asignado")  # Col 6: status
-
-#     await update.message.reply_text(
-#         f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
-#         "NO OLVIDES MARCARLO COMO COMPLETADO 🙏. "
-#         "Usa /completar para finalizar"
-#     )
 
 # Confirmación de asignación pendiente
 async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
