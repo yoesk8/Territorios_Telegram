@@ -253,69 +253,6 @@ async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Territorio {territory_id} se completó hoy: {today}"
     )
 
-# async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     args = context.args
-#     if len(args) < 2:
-#         await update.message.reply_text(
-#             "Para usar este comando: /zona <nombre_zona> <noasignados|asignados>\n"
-#             "Ejemplo: /zona PuertoAzul noasignados"
-#         )
-#         return
-
-#     # Normalizar zona y filtro
-#     zona_name_input = args[0].lower().replace(" ", "")
-#     filter_type = args[1].lower()
-
-#     if filter_type not in ("noasignados", "asignados"):
-#         await update.message.reply_text("El filtro debe ser 'noasignados' o 'asignados'.")
-#         return
-
-#     # Mapeo de nombres válidos de zonas
-#     valid_zones = {
-#         "puertoazul": "Puerto Azul",
-#         "puertasdelsol": "Puertas del sol",
-#         "portetetarqui": "Portete Tarqui",
-#         "bosqueazul": "Bosque Azul"
-#     }
-
-#     if zona_name_input not in valid_zones:
-#         await update.message.reply_text(
-#             "Zona no válida. Zonas disponibles: Puerto Azul, Puertas del sol, Portete Tarqui, Bosque Azul."
-#         )
-#         return
-
-#     zona_name = valid_zones[zona_name_input].lower().replace(" ", "")
-
-#     rows = sheet.get_all_values()
-#     matching_territories = []
-
-#     for row in rows[1:]:  # saltar header
-#         row_zone = row[1].lower().replace(" ", "")  # columna 2 = zona
-#         status = (row[5] or "").strip().lower()    # columna 6 = estado
-
-#         if row_zone != zona_name:
-#             continue
-
-#         if filter_type == "noasignados" and status not in ("asignado"):
-#             matching_territories.append(row[0])
-#         elif filter_type == "asignados" and status in ("asignado"):
-#             matching_territories.append(row[0])
-
-#     if not matching_territories:
-#         await update.message.reply_text("No se encontraron territorios que cumplan con los criterios.")
-#         return
-
-#     # Limitar a 50 territorios para no saturar Telegram
-#     max_items = 50
-#     display_list = matching_territories[:max_items]
-#     extra_count = len(matching_territories) - max_items
-
-#     list_str = "\n".join(display_list)
-#     msg = f"Territorios de la zona {valid_zones[zona_name_input]} ({filter_type}):\n{list_str}"
-#     if extra_count > 0:
-#         msg += f"\n...y {extra_count} más."
-
-#     await update.message.reply_text(msg)
 
 async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -411,8 +348,6 @@ def main():
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
-    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
-    application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
 
 
 
