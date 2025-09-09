@@ -172,12 +172,20 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
 
     # Validar si se completó en la última semana
     if last_completed_date and (today - last_completed_date).days <= 7:
+        buttons = [
+            [InlineKeyboardButton("✅ Sí, asignar de todas maneras", callback_data="confirm_si")],
+            [InlineKeyboardButton("❌ No, cancelar", callback_data="confirm_no")],
+        ]
+        reply_markup = InlineKeyboardMarkup(buttons)
+
         await query.message.edit_text(
             "⚠️ ADVERTENCIA! Este territorio se completó en la última semana.\n"
-            "Deseas asignarlo de todas maneras? Responde /si o /no"
+            "¿Deseas asignarlo de todas maneras?",
+            reply_markup=reply_markup
         )
         return
 
+    
     # Mostrar botones de personas
     publishers = ["Yoel", "Ana", "Carlos"]  # reemplazar por los nombres reales
     buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
@@ -294,30 +302,28 @@ async def do_assignment(update_or_query, territory_id, publisher, row):
 #     )
 
 # Confirmación de asignación pendiente
-async def confirm_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     pending = context.user_data.get("pending_assignment")
     if not pending:
-        await update.message.reply_text("❌ No hay ninguna asignación pendiente")
+        await query.message.edit_text("❌ No hay ninguna asignación pendiente")
         return
 
-    # Mostrar botones de personas después de confirmar
-    publishers = ["Yoel", "Ana", "Carlos"]  # reemplaza con tus nombres reales
-    buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
-    buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
-    reply_markup = InlineKeyboardMarkup(buttons)
+    # Mostrar botones de personas para asignación final
+    await mostrar_botones_personas(query, context)
 
-    await update.message.reply_text(
-        f"Territorio {pending['territory_id']} confirmado para asignar. Elige la persona:",
-        reply_markup=reply_markup
-    )
 
-async def confirm_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def confirm_no_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     if "pending_assignment" in context.user_data:
         context.user_data.pop("pending_assignment")
-        await update.message.reply_text("❌ Asignación cancelada.")
+        await query.message.edit_text("❌ Asignación cancelada.")
     else:
-        await update.message.reply_text("❌ No hay ninguna asignación pendiente")
-
+        await query.message.edit_text("❌ No hay ninguna asignación pendiente")
 
 
 
@@ -450,8 +456,8 @@ def main():
     application.add_handler(CommandHandler("inicio", inicio))
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
-    application.add_handler(CommandHandler("si", confirm_yes))
-    application.add_handler(CommandHandler("no", confirm_no))
+    application.add_handler(CallbackQueryHandler(confirm_si_callback, pattern="^confirm_si$"))
+    application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
