@@ -412,6 +412,7 @@ def main():
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
     application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_asignar$"))
+    application.add_handler(CallbackQueryHandler(asignar_zona_callback, pattern="^asignar_zona_"))
     application.add_handler(CallbackQueryHandler(asignar_territorio_callback, pattern="^asignar_territorio_"))
     application.add_handler(CallbackQueryHandler(asignar_persona_callback, pattern="^asignar_persona_"))
 
