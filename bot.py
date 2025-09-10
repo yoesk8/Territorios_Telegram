@@ -121,34 +121,53 @@ def parse_sheet_date(raw_value):
     return None
 
 # Funcion para asignar un territorio
+# --- Paso 1: Menú de zonas ---
 async def asignar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if query:
         await query.answer()
 
-    rows = sheet.get_all_values()
-    buttons = []
-    for row in rows[1:]:
-        territory_id = row[0]
-        status = (row[5] or "").strip().lower()
-        # Solo mostrar si no está Asignado o En Progreso
-        if status not in ("asignado", "en progreso"):
-            buttons.append([InlineKeyboardButton(territory_id, callback_data=f"asignar_territorio_{territory_id}")])
-
-    if not buttons:
-        text = "No hay territorios disponibles para asignar."
-    else:
-        text = "Selecciona un territorio para asignar:"
-
+    zonas = ["Puerto Azul", "Puertas del Sol", "Portete Tarqui", "Bosque Azul"]
+    buttons = [[InlineKeyboardButton(z, callback_data=f"asignar_zona_{z.replace(' ', '').lower()}")] for z in zonas]
     buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")])
     reply_markup = InlineKeyboardMarkup(buttons)
 
+    text = "🌍 Selecciona la zona de la que quieres asignar un territorio:"
     if query:
         await query.message.edit_text(text, reply_markup=reply_markup)
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=reply_markup)
 
-# Funcion para seleccionar territorio
+
+# --- Paso 2: Selección de territorio por zona ---
+async def asignar_zona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    zona_selected = query.data.replace("asignar_zona_", "")
+    context.user_data["zona_selected"] = zona_selected
+
+    rows = sheet.get_all_values()
+    buttons = []
+    for row in rows[1:]:
+        territory_id = row[0]
+        row_zone = row[1].lower().replace(" ", "")
+        status = (row[5] or "").strip().lower()
+
+        if row_zone == zona_selected and status not in ("asignado", "en progreso"):
+            buttons.append([InlineKeyboardButton(territory_id, callback_data=f"asignar_territorio_{territory_id}")])
+
+    if not buttons:
+        await query.message.edit_text(f"No hay territorios disponibles en {zona_selected.capitalize()}.")
+        return
+
+    buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    await query.message.edit_text(f"📍 Territorios disponibles en {zona_selected.capitalize()}:", reply_markup=reply_markup)
+
+
+# --- Paso 3: Validación del territorio ---
 async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -185,15 +204,32 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
         )
         return
 
-    
-    # Mostrar botones de personas
-    publishers = ["Yoel", "Ana", "Carlos"]  # reemplazar por los nombres reales
-    buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
-    buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
-    reply_markup = InlineKeyboardMarkup(buttons)
+    # Si no hay advertencia → mostrar directamente personas
+    await mostrar_botones_personas(query, context)
 
-    await query.message.edit_text(f"Territorio {territory_id} seleccionado. Elige la persona a asignar:", reply_markup=reply_markup)
 
+# --- Paso 4: Confirmación con botones ---
+async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    pending = context.user_data.get("pending_assignment")
+    if not pending:
+        await query.message.edit_text("❌ No hay ninguna asignación pendiente")
+        return
+
+    # Ahora mostramos las personas
+    await mostrar_botones_personas(query, context)
+
+async def confirm_no_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if "pending_assignment" in context.user_data:
+        context.user_data.pop("pending_assignment")
+    await query.message.edit_text("❌ Asignación cancelada.")
+
+
+# --- Paso 5: Mostrar lista de personas ---
 async def mostrar_botones_personas(query, context):
     publishers = ["Yoel", "Ana", "Carlos"]  # reemplaza con tus nombres reales
     buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
@@ -207,8 +243,7 @@ async def mostrar_botones_personas(query, context):
     )
 
 
-
-# Función para asignar una persona al territorio ya seleccionado
+# --- Paso 6: Selección de persona y asignación final ---
 async def asignar_persona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -220,11 +255,11 @@ async def asignar_persona_callback(update: Update, context: ContextTypes.DEFAULT
         return
 
     row = pending["row"]
-
     await do_assignment(query, pending["territory_id"], person, row)
     context.user_data.pop("pending_assignment")
 
-# Funcion para hacer la asignacion el la hoja de excel
+
+# --- Asignación en la hoja ---
 async def do_assignment(update_or_query, territory_id, publisher, row):
     today = date.today().isoformat()
     sheet.update_cell(row, 3, publisher)      # Col 3: asignado a
@@ -240,33 +275,6 @@ async def do_assignment(update_or_query, territory_id, publisher, row):
         await update_or_query.message.reply_text(text)
     else:
         await update_or_query.edit_message_text(text)
-
-
-
-# Confirmación de asignación pendiente
-async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    pending = context.user_data.get("pending_assignment")
-    if not pending:
-        await query.message.edit_text("❌ No hay ninguna asignación pendiente")
-        return
-
-    # Mostrar botones de personas para asignación final
-    await mostrar_botones_personas(query, context)
-
-
-async def confirm_no_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if "pending_assignment" in context.user_data:
-        context.user_data.pop("pending_assignment")
-        await query.message.edit_text("❌ Asignación cancelada.")
-    else:
-        await query.message.edit_text("❌ No hay ninguna asignación pendiente")
-
 
 
 
