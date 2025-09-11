@@ -354,8 +354,7 @@ def main():
     application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
 
     # Zona y filtros
-    application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_zona$"))
-    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
+    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^menu_zona$"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
 
     # Menú principal
