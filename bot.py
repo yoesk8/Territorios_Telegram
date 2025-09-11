@@ -350,16 +350,20 @@ def main():
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
 
-    # Callbacks
-    application.add_handler(CallbackQueryHandler(menu_handler))
+    # Asignación
     application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_asignar$"))
     application.add_handler(CallbackQueryHandler(asignar_zona_callback, pattern="^asignar_zona_"))
     application.add_handler(CallbackQueryHandler(asignar_territorio_callback, pattern="^asignar_territorio_"))
     application.add_handler(CallbackQueryHandler(asignar_persona_callback, pattern="^asignar_persona_"))
     application.add_handler(CallbackQueryHandler(confirm_si_callback, pattern="^confirm_si$"))
     application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
+
+    # Zona y filtros
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
+
+    # Menú principal
+    application.add_handler(CallbackQueryHandler(menu_handler, pattern="^menu_inicio$"))
 
     # Webhook
     set_webhook()
@@ -369,6 +373,7 @@ def main():
         url_path=TOKEN,
         webhook_url=f"{APP_URL}/{TOKEN}"
     )
+
 
 if __name__ == "__main__":
     main()
