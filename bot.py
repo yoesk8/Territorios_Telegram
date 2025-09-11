@@ -96,6 +96,11 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_inicio":
         await inicio(update, context)
 
+    else:
+    # Si ningún if/elif coincide, logueamos para ver qué llegó
+        logger.info(f"Objeto completo: {query}")     
+        logger.info(f"CallbackQuery data recibido: {data}")
+
     await query.answer()
 
 # --- Asignación de territorios ---
