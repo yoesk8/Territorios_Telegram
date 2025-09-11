@@ -229,15 +229,24 @@ async def do_assignment(update_or_query, territory_id, publisher, row):
     sheet.update_cell(row, 4, today)
     sheet.update_cell(row, 6, "Asignado")
 
+    # Leer la nota en la columna 7
+    nota = sheet.cell(row, 7).value
+
     text = (
         f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
-        "NO OLVIDES MARCARLO COMO COMPLETADO 🙏. Usa /completar para finalizar"
+        "NO OLVIDES MARCARLO COMO COMPLETADO 🙏. Una vez que hayas completado puedes usar /completar para finalizar"
     )
 
+    # Si hay nota, agregar advertencia
+    if nota:
+        text += f"\n\n⚠️ *¡ADVERTENCIA!* El territorio {territory_id} tiene la siguiente Nota:\n_{nota}_"
+
+    # Enviar mensaje según si viene de un mensaje o de un callback
     if hasattr(update_or_query, "message"):
-        await update_or_query.message.reply_text(text)
+        await update_or_query.message.reply_text(text, parse_mode="Markdown")
     else:
-        await update_or_query.edit_message_text(text)
+        await update_or_query.edit_message_text(text, parse_mode="Markdown")
+
 
 # --- Status y completar ---
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -345,8 +354,8 @@ def main():
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
 
- # --- MENÚS PRINCIPALES ---
-# Cualquier callback que empiece con "menu_" lo maneja menu_handler
+    # --- MENÚS PRINCIPALES ---
+    # Cualquier callback que empiece con "menu_" lo maneja menu_handler
     application.add_handler(CallbackQueryHandler(menu_handler, pattern="^menu_"))
 
     # --- ASIGNACIÓN ---
