@@ -82,9 +82,9 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "menu_zona":
         keyboard = [
             [InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul")],
-            [InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertassol")],
-            [InlineKeyboardButton("Portete Tarqui", callback_data="zona_portete")],
-            [InlineKeyboardButton("Bosque Azul", callback_data="zona_bosque")],
+            [InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertasdelsol")],
+            [InlineKeyboardButton("Portete Tarqui", callback_data="zona_portetetarqui")],
+            [InlineKeyboardButton("Bosque Azul", callback_data="zona_bosqueazul")],
             [InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -268,15 +268,6 @@ async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Territorio {territory_id} completado hoy: {today}")
 
 # --- Zonas y filtros ---
-async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul"),
-         InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertassol")],
-        [InlineKeyboardButton("Portete Tarqui", callback_data="zona_portete"),
-         InlineKeyboardButton("Bosque Azul", callback_data="zona_bosque")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Elige una zona:", reply_markup=reply_markup)
 
 async def zona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -348,7 +339,6 @@ def main():
     application.add_handler(CommandHandler("inicio", inicio))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
-    application.add_handler(CommandHandler("zona", zona))
 
     # Asignación
     application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_asignar$"))
