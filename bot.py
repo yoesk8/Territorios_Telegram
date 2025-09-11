@@ -345,17 +345,21 @@ def main():
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
 
-    # Asignación
-    application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_asignar$"))
+ # --- MENÚS PRINCIPALES ---
+# Cualquier callback que empiece con "menu_" lo maneja menu_handler
+    application.add_handler(CallbackQueryHandler(menu_handler, pattern="^menu_"))
+
+    # --- ASIGNACIÓN ---
     application.add_handler(CallbackQueryHandler(asignar_zona_callback, pattern="^asignar_zona_"))
     application.add_handler(CallbackQueryHandler(asignar_territorio_callback, pattern="^asignar_territorio_"))
     application.add_handler(CallbackQueryHandler(asignar_persona_callback, pattern="^asignar_persona_"))
     application.add_handler(CallbackQueryHandler(confirm_si_callback, pattern="^confirm_si$"))
     application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
 
-    # Zona y filtros
-    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^menu_zona$"))
+    # --- ZONAS Y FILTROS ---
+    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
+
 
     # Menú principal
     application.add_handler(CallbackQueryHandler(menu_handler, pattern="^menu_inicio$"))
