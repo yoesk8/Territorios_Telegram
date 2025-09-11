@@ -2,19 +2,16 @@ import os
 import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from telegram import Update
-import requests
-from datetime import date, datetime, timedelta
-import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
 )
-
-
+from datetime import date, datetime, timedelta
+import logging
+import requests
 
 # Logging config
 logging.basicConfig(
@@ -23,12 +20,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 # --- Load environment variables ---
 TOKEN = os.environ["BOT_TOKEN"]
 APP_URL = "https://territorios-telegram.onrender.com"
 
-# Google credentials are stored as JSON in an env variable
 google_creds_json = os.environ.get("GOOGLE_CREDENTIALS")
 if not google_creds_json:
     raise RuntimeError("GOOGLE_CREDENTIALS not set in environment!")
@@ -41,8 +36,31 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 sheet = client.open("DoorToDoor_Territories").sheet1
 
+# --- Utilidades ---
+def parse_sheet_date(raw_value):
+    """Parsear fechas de Google Sheets a date."""
+    if not raw_value:
+        return None
+    if isinstance(raw_value, date):
+        return raw_value
+    if isinstance(raw_value, (int, float)):
+        try:
+            return (datetime(1899, 12, 30) + timedelta(days=int(raw_value))).date()
+        except:
+            return None
+    raw_value = str(raw_value).strip()
+    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
+        try:
+            return datetime.strptime(raw_value, fmt).date()
+        except ValueError:
+            continue
+    return None
 
-# Función del menú principal
+def normalize_zone_name(name: str) -> str:
+    """Normaliza nombres de zona para comparar con la hoja."""
+    return name.lower().replace(" ", "")
+
+# --- Funciones del bot ---
 async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📍 Zona", callback_data="menu_zona")],
@@ -50,13 +68,13 @@ async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if update.message:  # Si se abre con /inicio
+    if update.message:
         await update.message.reply_text("📌 Menú principal:", reply_markup=reply_markup)
-    elif update.callback_query:  # Si se abre desde otro botón
+    elif update.callback_query:
         await update.callback_query.message.edit_text("📌 Menú principal:", reply_markup=reply_markup)
         await update.callback_query.answer()
 
-# Handler de los botones
+# --- Menu principal ---
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
@@ -73,62 +91,21 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text("🌍 Selecciona una zona:", reply_markup=reply_markup)
 
     elif data == "menu_asignar":
-        await query.message.edit_text("✍️ Usa los botones o el comando para asignar territorios.")
+        await asignar_menu(update, context)
 
     elif data == "menu_inicio":
-        await inicio(update, context)  # Volver al inicio
-    
+        await inicio(update, context)
 
     await query.answer()
 
-
-def set_webhook():
-    url = f"{APP_URL}/{TOKEN}"
-    webhook_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
-    response = requests.post(webhook_url, data={"url": url})
-    print("Webhook setup response:", response.json())
-
-
-
-# Función para parsear fechas de Google Sheets
-def parse_sheet_date(raw_value):
-    """Parsear fechas de Google Sheets (string o número serial) a date."""
-    if not raw_value:
-        return None
-
-    # Si ya es date
-    if isinstance(raw_value, date):
-        return raw_value
-
-    # Si es número serial
-    if isinstance(raw_value, (int, float)):
-        try:
-            return (datetime(1899, 12, 30) + timedelta(days=int(raw_value))).date()
-        except Exception as e:
-            logger.error(f"Error parseando número de fecha: {e}")
-            return None
-
-    raw_value = str(raw_value).strip()
-
-    # Intentar múltiples formatos: día/mes/año, mes/día/año, año-mes-día
-    for fmt in ("%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y"):
-        try:
-            return datetime.strptime(raw_value, fmt).date()
-        except ValueError:
-            continue
-
-    logger.warning(f"No se pudo parsear la fecha: {raw_value}")
-    return None
-
-# Funcion para asignar un territorio
-# --- Paso 1: Menú de zonas ---
+# --- Asignación de territorios ---
 async def asignar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if query:
         await query.answer()
 
     zonas = ["Puerto Azul", "Puertas del Sol", "Portete Tarqui", "Bosque Azul"]
-    buttons = [[InlineKeyboardButton(z, callback_data=f"asignar_zona_{z.replace(' ', '').lower()}")] for z in zonas]
+    buttons = [[InlineKeyboardButton(z, callback_data=f"asignar_zona_{normalize_zone_name(z)}")] for z in zonas]
     buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")])
     reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -138,8 +115,6 @@ async def asignar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=reply_markup)
 
-
-# --- Paso 2: Selección de territorio por zona ---
 async def asignar_zona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -151,7 +126,7 @@ async def asignar_zona_callback(update: Update, context: ContextTypes.DEFAULT_TY
     buttons = []
     for row in rows[1:]:
         territory_id = row[0]
-        row_zone = row[1].lower().replace(" ", "")
+        row_zone = normalize_zone_name(row[1])
         status = (row[5] or "").strip().lower()
 
         if row_zone == zona_selected and status not in ("asignado", "en progreso"):
@@ -163,11 +138,8 @@ async def asignar_zona_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
     reply_markup = InlineKeyboardMarkup(buttons)
-
     await query.message.edit_text(f"📍 Territorios disponibles en {zona_selected.capitalize()}:", reply_markup=reply_markup)
 
-
-# --- Paso 3: Validación del territorio ---
 async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -186,17 +158,14 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
         await query.message.edit_text("Ese territorio ya ha sido asignado")
         return
 
-    # Guardamos pending assignment temporal
     context.user_data["pending_assignment"] = {"territory_id": territory_id, "row": cell.row}
 
-    # Validar si se completó en la última semana
     if last_completed_date and (today - last_completed_date).days <= 7:
         buttons = [
             [InlineKeyboardButton("✅ Sí, asignar de todas maneras", callback_data="confirm_si")],
             [InlineKeyboardButton("❌ No, cancelar", callback_data="confirm_no")],
         ]
         reply_markup = InlineKeyboardMarkup(buttons)
-
         await query.message.edit_text(
             "⚠️ ADVERTENCIA! Este territorio se completó en la última semana.\n"
             "¿Deseas asignarlo de todas maneras?",
@@ -204,11 +173,8 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
         )
         return
 
-    # Si no hay advertencia → mostrar directamente personas
     await mostrar_botones_personas(query, context)
 
-
-# --- Paso 4: Confirmación con botones ---
 async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -218,20 +184,16 @@ async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.edit_text("❌ No hay ninguna asignación pendiente")
         return
 
-    # Ahora mostramos las personas
     await mostrar_botones_personas(query, context)
 
 async def confirm_no_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if "pending_assignment" in context.user_data:
-        context.user_data.pop("pending_assignment")
+    context.user_data.pop("pending_assignment", None)
     await query.message.edit_text("❌ Asignación cancelada.")
 
-
-# --- Paso 5: Mostrar lista de personas ---
 async def mostrar_botones_personas(query, context):
-    publishers = ["Yoel", "Ana", "Carlos"]  # reemplaza con tus nombres reales
+    publishers = ["Yoel", "Ana", "Carlos"]
     buttons = [[InlineKeyboardButton(p, callback_data=f"asignar_persona_{p}")] for p in publishers]
     buttons.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_asignar")])
     reply_markup = InlineKeyboardMarkup(buttons)
@@ -242,8 +204,6 @@ async def mostrar_botones_personas(query, context):
         reply_markup=reply_markup
     )
 
-
-# --- Paso 6: Selección de persona y asignación final ---
 async def asignar_persona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -258,13 +218,11 @@ async def asignar_persona_callback(update: Update, context: ContextTypes.DEFAULT
     await do_assignment(query, pending["territory_id"], person, row)
     context.user_data.pop("pending_assignment")
 
-
-# --- Asignación en la hoja ---
 async def do_assignment(update_or_query, territory_id, publisher, row):
     today = date.today().isoformat()
-    sheet.update_cell(row, 3, publisher)      # Col 3: asignado a
-    sheet.update_cell(row, 4, today)          # Col 4: fecha asignación
-    sheet.update_cell(row, 6, "Asignado")     # Col 6: status
+    sheet.update_cell(row, 3, publisher)
+    sheet.update_cell(row, 4, today)
+    sheet.update_cell(row, 6, "Asignado")
 
     text = (
         f"✅ Territorio {territory_id} asignado a {publisher} hoy {today}, "
@@ -276,62 +234,48 @@ async def do_assignment(update_or_query, territory_id, publisher, row):
     else:
         await update_or_query.edit_message_text(text)
 
-
-
+# --- Status y completar ---
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
-        await update.message.reply_text("Este comando se usa asi: /status <# de territorio Ejemplo: /status 1>")
+        await update.message.reply_text("Uso: /status <# de territorio>")
         return
 
     territory_id = args[0]
     cell = sheet.find(territory_id)
     if cell:
         row = sheet.row_values(cell.row)
-        await update.message.reply_text(f"El Territorio # {territory_id} se encuentra {row}")
+        await update.message.reply_text(f"Territorio #{territory_id}: {row}")
     else:
         await update.message.reply_text("❌ Territorio no encontrado")
 
 async def complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) < 1:
-        await update.message.reply_text(
-            "Para usar este comando, la manera correcta de hacerlo es: "
-            "/completar <numero_de_territorio>, Por ejemplo: /completar 1"
-        )
+        await update.message.reply_text("Uso correcto: /completar <# de territorio>")
         return
 
     territory_id = args[0]
     cell = sheet.find(territory_id)
-
     if not cell:
         await update.message.reply_text("❌ Territorio no encontrado")
         return
 
-    today = date.today().isoformat()  # always YYYY-MM-DD
+    today = date.today().isoformat()
+    sheet.update_cell(cell.row, 5, today)
+    sheet.update_cell(cell.row, 6, "No asignado")
 
-    # Update publisher & date completed
-    sheet.update_cell(cell.row, 5, today)   # fecha en que se completó (col 5)
-    sheet.update_cell(cell.row, 6, "No asignado")  # status (col 6)
+    await update.message.reply_text(f"✅ Territorio {territory_id} completado hoy: {today}")
 
-    await update.message.reply_text(
-        f"✅ Territorio {territory_id} se completó hoy: {today}"
-    )
-
-
+# --- Zonas y filtros ---
 async def zona(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [
-            InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul"),
-            InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertasdelsol")
-        ],
-        [
-            InlineKeyboardButton("Portete Tarqui", callback_data="zona_portetetarqui"),
-            InlineKeyboardButton("Bosque Azul", callback_data="zona_bosqueazul")
-        ]
+        [InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul"),
+         InlineKeyboardButton("Puertas del Sol", callback_data="zona_puertassol")],
+        [InlineKeyboardButton("Portete Tarqui", callback_data="zona_portete"),
+         InlineKeyboardButton("Bosque Azul", callback_data="zona_bosque")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text("Elige una zona:", reply_markup=reply_markup)
 
 async def zona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -341,15 +285,11 @@ async def zona_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     zona_selected = query.data.replace("zona_", "")
     context.user_data["zona_selected"] = zona_selected
 
-    # Ahora mostrar botones de filtro
     keyboard = [
-        [
-            InlineKeyboardButton("Asignados", callback_data="filtro_asignados"),
-            InlineKeyboardButton("No Asignados", callback_data="filtro_noasignados")
-        ]
+        [InlineKeyboardButton("Asignados", callback_data="filtro_asignados"),
+         InlineKeyboardButton("No Asignados", callback_data="filtro_noasignados")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     await query.edit_message_text(
         text=f"Zona seleccionada: {zona_selected.capitalize()}\nAhora elige un filtro:",
         reply_markup=reply_markup
@@ -366,11 +306,10 @@ async def filtro_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ No se seleccionó ninguna zona.")
         return
 
-    # Aquí reutilizas la lógica que ya tienes para filtrar territorios
     rows = sheet.get_all_values()
     matching_territories = []
     for row in rows[1:]:
-        row_zone = row[1].lower().replace(" ", "")
+        row_zone = normalize_zone_name(row[1])
         status = (row[5] or "").strip().lower()
 
         if row_zone != zona_selected:
@@ -385,50 +324,51 @@ async def filtro_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("No se encontraron territorios que cumplan con los criterios.")
         return
 
-    # Mostrar lista
     max_items = 50
     display_list = matching_territories[:max_items]
     extra_count = len(matching_territories) - max_items
     list_str = "\n".join(display_list)
-
     msg = f"📍 Territorios de {zona_selected.capitalize()} ({filtro_selected}):\n{list_str}"
     if extra_count > 0:
         msg += f"\n...y {extra_count} más."
-
     await query.edit_message_text(msg)
 
-
+# --- Webhook ---
+def set_webhook():
+    url = f"{APP_URL}/{TOKEN}"
+    webhook_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
+    response = requests.post(webhook_url, data={"url": url})
+    print("Webhook setup response:", response.json())
 
 # --- Main ---
 def main():
     application = Application.builder().token(TOKEN).build()
 
+    # Comandos
     application.add_handler(CommandHandler("inicio", inicio))
-    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
-    application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
-    application.add_handler(CallbackQueryHandler(confirm_si_callback, pattern="^confirm_si$"))
-    application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("completar", complete))
     application.add_handler(CommandHandler("zona", zona))
+
+    # Callbacks
+    application.add_handler(CallbackQueryHandler(menu_handler))
     application.add_handler(CallbackQueryHandler(asignar_menu, pattern="^menu_asignar$"))
     application.add_handler(CallbackQueryHandler(asignar_zona_callback, pattern="^asignar_zona_"))
     application.add_handler(CallbackQueryHandler(asignar_territorio_callback, pattern="^asignar_territorio_"))
     application.add_handler(CallbackQueryHandler(asignar_persona_callback, pattern="^asignar_persona_"))
+    application.add_handler(CallbackQueryHandler(confirm_si_callback, pattern="^confirm_si$"))
+    application.add_handler(CallbackQueryHandler(confirm_no_callback, pattern="^confirm_no$"))
+    application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
+    application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
 
-    application.add_handler(CallbackQueryHandler(menu_handler))
-
-
-
-
+    # Webhook
     set_webhook()
     application.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.environ.get("PORT", 10000)),
-    url_path=TOKEN,  # 👈 listen at /<TOKEN>
-    webhook_url=f"{APP_URL}/{TOKEN}"  # 👈 matches Telegram webhook
-)
-
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000)),
+        url_path=TOKEN,
+        webhook_url=f"{APP_URL}/{TOKEN}"
+    )
 
 if __name__ == "__main__":
     main()
