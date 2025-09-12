@@ -124,12 +124,10 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("completar_"):
         territory_id = data.split("_", 1)[1]
 
-        # Answer immediately to stop the spinner
-        await query.answer()
-
         cell = sheet.find(territory_id)
         if not cell:
             await query.message.edit_text("❌ Territorio no encontrado")
+            await query.answer()
             return
 
         today = date.today().isoformat()
@@ -137,6 +135,12 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sheet.update_cell(cell.row, 6, "No asignado")
 
         await query.message.edit_text(f"✅ Territorio {territory_id} completado hoy: {today}")
+
+    # Go back to main menu
+    elif data == "menu_inicio":
+        await inicio(update, context)
+
+    await query.answer()
 
 
 # --- Asignación de territorios ---
