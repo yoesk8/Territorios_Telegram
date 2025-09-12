@@ -60,10 +60,11 @@ def normalize_zone_name(name: str) -> str:
     """Normaliza nombres de zona para comparar con la hoja."""
     return name.lower().replace(" ", "")
 
-# --- Funciones del bot ---
+
+# --- Main menu ---
 async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📍 Zona", callback_data="menu_zona")],
+        [InlineKeyboardButton("📍 Zonas", callback_data="menu_zona")],
         [InlineKeyboardButton("📝 Asignar", callback_data="menu_asignar")],
         [InlineKeyboardButton("✅ Completar", callback_data="menu_completar")],
     ]
@@ -75,11 +76,13 @@ async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.edit_text("📌 Menú principal:", reply_markup=reply_markup)
         await update.callback_query.answer()
 
-# --- Menu principal ---
+
+# --- Menu handler ---
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
 
+    # Zonas submenu
     if data == "menu_zona":
         keyboard = [
             [InlineKeyboardButton("Puerto Azul", callback_data="zona_puertoazul")],
@@ -91,27 +94,54 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.edit_text("🌍 Selecciona una zona:", reply_markup=reply_markup)
 
+    # Asignar submenu
     elif data == "menu_asignar":
         await asignar_menu(update, context)
-    
-    elif data == "menu_completar":
-        # TODO: open completar menu or call your complete logic
-        await query.message.edit_text(
-            "✅ Selecciona un territorio para completar:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")]
-            ])
-        )
 
+    # Completar submenu
+    elif data == "menu_completar":
+        assigned_cells = sheet.findall("Asignado", in_column=6)
+
+        if not assigned_cells:
+            await query.message.edit_text("No hay territorios asignados ✅")
+            await query.answer()
+            return
+
+        keyboard = []
+        for cell in assigned_cells:
+            territory_id = sheet.cell(cell.row, 1).value  # col 1 = territory ID
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"Completar {territory_id}",
+                    callback_data=f"completar_{territory_id}"
+                )
+            ])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.edit_text("Selecciona el territorio a completar:", reply_markup=reply_markup)
+
+    # Completar specific territory
+    elif data.startswith("completar_"):
+        territory_id = data.split("_", 1)[1]
+
+        cell = sheet.find(territory_id)
+        if not cell:
+            await query.message.edit_text("❌ Territorio no encontrado")
+            await query.answer()
+            return
+
+        today = date.today().isoformat()
+        sheet.update_cell(cell.row, 5, today)   # Col 5 = Fecha completado
+        sheet.update_cell(cell.row, 6, "No asignado")
+
+        await query.message.edit_text(f"✅ Territorio {territory_id} completado hoy: {today}")
+
+    # Go back to main menu
     elif data == "menu_inicio":
         await inicio(update, context)
 
-    else:
-    # Si ningún if/elif coincide, logueamos para ver qué llegó
-        logger.info(f"Objeto completo: {query}")     
-        logger.info(f"CallbackQuery data recibido: {data}")
-
     await query.answer()
+
 
 # --- Asignación de territorios ---
 async def asignar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
