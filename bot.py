@@ -100,47 +100,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Completar submenu
     elif data == "menu_completar":
-        assigned_cells = sheet.findall("Asignado", in_column=6)
-
-        if not assigned_cells:
-            await query.message.edit_text("No hay territorios asignados ✅")
-            await query.answer()
-            return
-
-        keyboard = []
-        for cell in assigned_cells:
-            territory_id = sheet.cell(cell.row, 1).value  # col 1 = territory ID
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"Completar {territory_id}",
-                    callback_data=f"completar_{territory_id}"
-                )
-            ])
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.edit_text("Selecciona el territorio a completar:", reply_markup=reply_markup)
-
-    # Completar specific territory
-    elif data.startswith("completar_"):
-        territory_id = data.split("_", 1)[1]
-
-        cell = sheet.find(territory_id)
-        if not cell:
-            await query.message.edit_text("❌ Territorio no encontrado")
-            await query.answer()
-            return
-
-        today = date.today().isoformat()
-        sheet.update_cell(cell.row, 5, today)   # Col 5 = Fecha completado
-        sheet.update_cell(cell.row, 6, "No asignado")
-
-        await query.message.edit_text(f"✅ Territorio {territory_id} completado hoy: {today}")
-
-    # Go back to main menu
-    elif data == "menu_inicio":
-        await inicio(update, context)
-
-    await query.answer()
+        await completar_menu(update, context)
 
 
 # --- Asignación de territorios ---
@@ -219,6 +179,52 @@ async def asignar_territorio_callback(update: Update, context: ContextTypes.DEFA
         return
 
     await mostrar_botones_personas(query, context)
+
+
+# Logica para completar territorio
+async def completar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    assigned_cells = sheet.findall("Asignado", in_column=6)
+
+    if not assigned_cells:
+        await query.message.edit_text("No hay territorios asignados ✅")
+        await query.answer()
+        return
+
+    keyboard = []
+    for cell in assigned_cells:
+        territory_id = sheet.cell(cell.row, 1).value  # col 1 = territory ID
+        keyboard.append([
+            InlineKeyboardButton(
+                f"Completar {territory_id}",
+                callback_data=f"completar_{territory_id}"
+            )
+        ])
+
+    keyboard.append([InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.edit_text("Selecciona el territorio a completar:", reply_markup=reply_markup)
+    await query.answer()
+
+async def completar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    territory_id = data.split("_", 1)[1]
+
+    await query.answer()  # stop spinner immediately
+
+    cell = sheet.find(territory_id)
+    if not cell:
+        await query.message.edit_text("❌ Territorio no encontrado")
+        return
+
+    today = date.today().isoformat()
+    sheet.update_cell(cell.row, 5, today)   # Col 5 = Fecha completado
+    sheet.update_cell(cell.row, 6, "No asignado")
+
+    await query.message.edit_text(f"✅ Territorio {territory_id} completado hoy: {today}")
+
 
 async def confirm_si_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -408,6 +414,10 @@ def main():
     # --- ZONAS Y FILTROS ---
     application.add_handler(CallbackQueryHandler(zona_callback, pattern="^zona_"))
     application.add_handler(CallbackQueryHandler(filtro_callback, pattern="^filtro_"))
+
+
+    # Completar
+    application.add_handler(CallbackQueryHandler(completar_callback, pattern="^completar_"))
 
 
     # Menú principal
