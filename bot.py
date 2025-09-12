@@ -139,7 +139,6 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(f"✅ Territorio {territory_id} completado hoy: {today}")
 
 
-
 # --- Asignación de territorios ---
 async def asignar_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
