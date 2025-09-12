@@ -65,6 +65,7 @@ async def inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📍 Zona", callback_data="menu_zona")],
         [InlineKeyboardButton("📝 Asignar", callback_data="menu_asignar")],
+        [InlineKeyboardButton("✅ Completar", callback_data="menu_completar")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -92,6 +93,15 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "menu_asignar":
         await asignar_menu(update, context)
+    
+    elif data == "menu_completar":
+        # TODO: open completar menu or call your complete logic
+        await query.message.edit_text(
+            "✅ Selecciona un territorio para completar:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⬅️ Volver", callback_data="menu_inicio")]
+            ])
+        )
 
     elif data == "menu_inicio":
         await inicio(update, context)
